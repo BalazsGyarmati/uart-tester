@@ -1,0 +1,15 @@
+[Unit]
+Description=UART Reliability Tester
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/uart-tester/pi5
+ExecStart=/usr/bin/python3 /home/pi/uart-tester/pi5/uart_tester.py
+Restart=no
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
