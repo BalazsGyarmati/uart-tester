@@ -101,7 +101,10 @@ def neopixel_thread():
         return
     
     pin = Pin(config.NEOPIXEL_PIN, Pin.OUT)
-    np = NeoPixel(pin, config.NEOPIXEL_COUNT)
+    if config.NEOPIXEL_FORMAT in ("RGBW", "GRBW"):
+        np = NeoPixel(pin, config.NEOPIXEL_COUNT, bpp=4)
+    else:
+        np = NeoPixel(pin, config.NEOPIXEL_COUNT)
     brightness = getattr(config, 'NEOPIXEL_BRIGHTNESS', 1.0)
     
     while neopixel_running:
