@@ -147,7 +147,7 @@ def main():
             try:
                 data = uart.read(uart.any())
                 if data:
-                    buffer += data.decode('utf-8', errors='ignore')
+                    buffer += data.decode('utf-8', 'ignore')
                     
                     # Process complete lines
                     while '\n' in buffer:
