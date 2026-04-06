@@ -117,13 +117,8 @@ def neopixel_thread():
 def main():
     global neopixel_running
     
-    # Initialize UART
-    uart = UART(
-        config.UART_ID,
-        config.BAUD_RATE,
-        tx=config.UART_TX_PIN,
-        rx=config.UART_RX_PIN
-    )
+    # Initialize UART (UART1 uses GP4=TX, GP5=RX by default)
+    uart = UART(config.UART_ID, config.BAUD_RATE)
     
     # Start neopixel animation in background thread
     if NEOPIXEL_AVAILABLE:
@@ -150,7 +145,7 @@ def main():
         # Check for incoming data
         if uart.any():
             try:
-                data = uart.read()
+                data = uart.read(uart.any())
                 if data:
                     buffer += data.decode('utf-8', errors='ignore')
                     
