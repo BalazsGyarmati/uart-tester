@@ -185,6 +185,7 @@ class UARTTester:
             sys.exit(1)
         
         self._init_csv()
+        ser.reset_input_buffer()
         self.running = True
         
         try:
