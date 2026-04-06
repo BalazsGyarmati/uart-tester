@@ -77,6 +77,10 @@ def wheel(pos):
         pos -= 170
         return (pos * 3, 0, 255 - pos * 3)
 
+def apply_brightness(color, brightness):
+    """Apply brightness (0.0-1.0) to color tuple"""
+    return tuple(int(c * brightness) for c in color)
+
 def format_color(r, g, b, fmt):
     """Convert RGB to configured format"""
     order = FORMAT_MAP.get(fmt, (0, 1, 2, -1))
@@ -98,11 +102,13 @@ def neopixel_thread():
     
     pin = Pin(config.NEOPIXEL_PIN, Pin.OUT)
     np = NeoPixel(pin, config.NEOPIXEL_COUNT)
+    brightness = getattr(config, 'NEOPIXEL_BRIGHTNESS', 1.0)
     
     while neopixel_running:
         for i in range(config.NEOPIXEL_COUNT):
             color_pos = (i * 256 // config.NEOPIXEL_COUNT + rainbow_offset) & 255
             r, g, b = wheel(color_pos)
+            r, g, b = apply_brightness((r, g, b), brightness)
             np[i] = format_color(r, g, b, config.NEOPIXEL_FORMAT)
         np.write()
         rainbow_offset = (rainbow_offset + 1) & 255
@@ -114,9 +120,9 @@ def main():
     # Initialize UART
     uart = UART(
         config.UART_ID,
-        baudrate=config.BAUD_RATE,
-        tx=Pin(config.UART_TX_PIN),
-        rx=Pin(config.UART_RX_PIN)
+        config.BAUD_RATE,
+        tx=config.UART_TX_PIN,
+        rx=config.UART_RX_PIN
     )
     
     # Start neopixel animation in background thread
@@ -124,11 +130,23 @@ def main():
         _thread.start_new_thread(neopixel_thread, ())
     
     buffer = ""
+    heartbeat_interval_ms = 5000
+    last_heartbeat = time.ticks_ms()
+    msg_count = 0
     
     print(f"UART Tester started - UART{config.UART_ID} @ {config.BAUD_RATE} bps")
     print(f"Checksum: {'ON' if config.CHECKSUM_ENABLED else 'OFF'}")
+    print(f"Neopixel: {config.NEOPIXEL_COUNT} LEDs on GP{config.NEOPIXEL_PIN}")
+    print("Waiting for UART messages...")
     
     while True:
+        now = time.ticks_ms()
+        
+        # Heartbeat
+        if time.ticks_diff(now, last_heartbeat) >= heartbeat_interval_ms:
+            print(f"[HEARTBEAT] uptime: {now // 1000}s, msgs: {msg_count}")
+            last_heartbeat = now
+        
         # Check for incoming data
         if uart.any():
             try:
@@ -139,14 +157,20 @@ def main():
                     # Process complete lines
                     while '\n' in buffer:
                         line, buffer = buffer.split('\n', 1)
+                        print(f"[DEBUG] raw line: {repr(line)}")
                         valid, seq, payload, has_checksum = parse_message(line)
+                        print(f"[DEBUG] parsed: valid={valid}, seq={seq}, has_crc={has_checksum}")
+                        msg_count += 1
                         
                         if valid:
                             uart.write(b"OK\n")
+                            print(f"[RX] #{seq} len={len(line)} -> OK")
                         else:
                             uart.write(b"NOK\n")
+                            print(f"[RX] invalid: {line[:50]} -> NOK")
             except Exception as e:
                 uart.write(b"NOK\n")
+                print(f"[ERR] {e}")
                 buffer = ""
         
         time.sleep_ms(1)
